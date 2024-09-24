@@ -18,6 +18,7 @@ return {
       -- decode = function(args) ... end,
       -- ...
       -- builtin magics: processEnv, date, randomInt, timestamp, urlencode
+      -- usage: {{$<magic> <arg1> <arg2> <args3>}}
     },
   },
 }
@@ -30,8 +31,42 @@ return {
   - [x] Define variable inside http file.
   - [x] Use magic lua function in variable replacement.
   - [ ] Read variable from environment files.
+- [ ] Response highlight.
 
 ## Q&A
+
+### Can I customize the spinner highlight group?
+
+Yes, you can.
+
+```lua
+{
+  animation = {
+    spinner = {
+      {
+        { ">", "Comment" },
+        { ">", "Comment" },
+        { ">", "Comment" },
+      },
+      {
+        { ">", "Special" },
+        { ">", "Comment" },
+        { ">", "Comment" },
+      },
+      {
+        { ">", "Comment" },
+        { ">", "Special" },
+        { ">", "Comment" },
+      },
+      {
+        { ">", "Comment" },
+        { ">", "Comment" },
+        { ">", "Special" },
+      },
+    },
+  },
+}
+```
 
 ### Can I use another variable during variable declaration?
 
