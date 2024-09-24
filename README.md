@@ -72,7 +72,7 @@ Yes, you can.
 
 Yes, you can.
 
-```http
+```
 @ORG=httpbin
 @HOST={{ORG}}.org
 
@@ -83,7 +83,7 @@ GET https://{{HOST}}/get
 
 ### How to include space character in arguments during magic replacement?
 
-```http
+```
 GET https://httpbin.org/get
 Current-Datetime: {{$date %Y-%m-%d\ %H:%M:%S}}
 ```
