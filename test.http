@@ -5,3 +5,12 @@
 ###
 
 GET {{SITE}}/get
+
+###
+
+POST {{SITE}}/post
+Content-Type: application/json
+
+{
+  "key": "value"
+}

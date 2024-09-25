@@ -20,18 +20,31 @@ return {
       -- builtin magics: processEnv, datetime, randomInt, timestamp, urlencode
       -- usage: {{$<magic> <arg1> <arg2> <args3>}}
     },
+    patterns = {
+      -- json = "^application/.*json.*$",
+      -- ...
+      -- get lang from content-type for highlights.
+    },
   },
 }
 ```
 
 ## features
 
+- [x] Request parse.
+  - [x] method
+  - [x] url
+  - [x] headers
+  - [x] json body
+  - [ ] raw body
+  - [ ] form support
+  - [ ] external file support
 - [x] Spinner to indicate that request is running.
 - [x] variable replacement.
   - [x] Define variable inside http file.
   - [x] Use magic lua function in variable replacement.
   - [ ] Read variable from environment files.
-- [ ] Response highlight.
+- [x] Response highlight.
 
 ## usage
 

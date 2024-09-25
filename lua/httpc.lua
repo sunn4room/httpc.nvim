@@ -6,6 +6,7 @@
 ---@class httpc.Opts
 ---@field animation httpc.Animation | nil
 ---@field magics table<string, httpc.Magic> | nil
+---@field patterns table<string, string> | nil
 
 ---@class httpc.Animation
 ---@field spinner string[] | httpc.AnimationSpinner | nil
@@ -33,9 +34,6 @@
 local log = function(msg, level)
   vim.notify("[Httpc] " .. msg, level)
 end
-
----@type httpc.Opts
-local user_opts = {}
 
 ---@type httpc.Opts
 local default_opts = {
@@ -79,31 +77,13 @@ local default_opts = {
       end))
     end,
   },
+  patterns = {
+    json = "^application/.*json.*$",
+  },
 }
 
----@param ... any
----@return any
-local get_opt = function(...)
-  local result = vim.tbl_get(user_opts, ...)
-  if
-      result ~= nil
-      and select("#", ...) == 2
-      and select(1, ...) == "animation"
-      and select(2, ...) == "spinner"
-  then
-    if #result < 2 then
-      result = nil
-    elseif type(result[1]) == "string" then
-      result = vim.tbl_map(function(s)
-        return { { s, "Comment" } }
-      end, result)
-    end
-  end
-  if result == nil then
-    result = vim.tbl_get(default_opts, ...)
-  end
-  return result
-end
+---@type httpc.Opts
+local user_opts = default_opts
 
 ---@param pos httpc.Pos | nil
 ---@return TSNode node
@@ -156,11 +136,44 @@ local clear_ctx = function()
   end
 end
 
+---@param query vim.treesitter.Query
+local add_body_highlights = function(chunks, body, query)
+  local parser = vim.treesitter.get_string_parser(body, query.lang)
+  local root = parser:parse(true)[1]:root()
+
+  local groups = {}
+  groups[1] = ""
+  groups[#body + 1] = ""
+  local stack = {}
+  stack[1] = { #body, "" }
+  for id, node in query:iter_captures(root, body) do
+    local group = "@" .. query.captures[id]
+    local _, _, s, _, _, e = node:range(true)
+    while stack[#stack][1] < e do
+      stack[#stack] = nil
+    end
+    groups[s + 1] = group
+    if groups[e + 1] == nil then
+      groups[e + 1] = stack[#stack][2]
+    end
+    stack[#stack + 1] = { e, group }
+  end
+
+  local idx = 1
+  local group = groups[1]
+  groups[1] = nil
+  for i, g in pairs(groups) do
+    table.insert(chunks, { body:sub(idx, i - 1), group })
+    idx = i
+    group = g
+  end
+end
+
 ---@param node TSNode
 ---@param buf integer
 local run_request = function(node, buf)
   ---@type string[]
-  local cmd = { "curl", "-i", "-s", "-S", "-w", "%{time_total} %{size_request}" }
+  local cmd = { "curl", "-i", "-s", "-S", "-w", " %{time_total}" }
   ---@type table<string, string>
   local variable_cache = {}
   ---@type fun(origin: string, cur_node: TSNode | nil): string
@@ -173,7 +186,7 @@ local run_request = function(node, buf)
         if #parts[1] == 0 then
           error({ reason = "you may forget to set magic function" })
         end
-        local magic_fun = get_opt("magics", parts[1]) --[[@as httpc.Magic | nil]]
+        local magic_fun = user_opts.magics[parts[1]] --[[@as httpc.Magic | nil]]
         if not magic_fun then
           error({ reason = "magic function " .. parts[1] .. " not found" })
         end
@@ -240,8 +253,8 @@ local run_request = function(node, buf)
     end
   end
   local ns = vim.api.nvim_create_namespace("httpc-" .. tostring(buf))
-  local spinner = get_opt("animation", "spinner") --[[@as httpc.AnimationSpinner]]
-  local interval = get_opt("animation", "interval") --[[@as integer]]
+  local spinner = user_opts.animation.spinner --[[@as httpc.AnimationSpinner]]
+  local interval = user_opts.animation.interval --[[@as integer]]
   local spinner_idx = 0
   local linenr = node:range()
   local extmark = vim.api.nvim_buf_set_extmark(buf, ns, linenr, 0, {
@@ -262,17 +275,61 @@ local run_request = function(node, buf)
       clear_ctx()
       vim.schedule(function()
         if r.code == 0 then
-          if r.stdout then
-            local all, time, size = string.match(r.stdout, "((%S+) (%S+))$")
-            r.stdout = ("time: %s, size: %s, status: %s"):format(
-              time,
-              size,
-              r.stdout:sub(1, - #all - 1)
-            )
+          if r.stdout and #r.stdout ~= 0 then
+            local version, status, headers, body, time =
+                r.stdout:match("^([^ ]+) ([^ ]+) \n(.-)\n\n(.*) ([^ ]+)$")
+            local chunks = {}
+            table.insert(chunks, { "take " .. time .. " seconds.", "MoreMsg" })
+            table.insert(chunks, { "\n----------------------\n", "MoreMsg" })
+            table.insert(chunks, { version })
+            table.insert(chunks, { " " })
+            local status_kind = tonumber(status:sub(1, 1)) --[[@as integer]]
+            local status_hl = {
+              "DiagnosticHint",
+              "DiagnosticOk",
+              "DiagnosticInfo",
+              "DiagnosticWarn",
+              "DiagnosticError",
+            }
+            table.insert(chunks, { status, status_hl[status_kind] })
+            table.insert(chunks, { "\n" })
+            ---@type string | nil
+            local content_type = nil
+            for _, header in ipairs(vim.split(headers, "\n")) do
+              local key, value = header:match("^(.-: )(.*)$") --[[@as string, string]]
+              table.insert(chunks, { key, "Special" })
+              table.insert(chunks, { value })
+              table.insert(chunks, { "\n" })
+              if key:lower() == "content-type: " then
+                content_type = value
+              end
+            end
+            table.insert(chunks, { "\n" })
+            ---@type vim.treesitter.Query | nil
+            local query = nil
+            if content_type then
+              for l, p in pairs(user_opts.patterns) do
+                if content_type:match(p) then
+                  query = vim.treesitter.query.get(l, "highlights")
+                  break
+                end
+              end
+            end
+            if query then
+              add_body_highlights(chunks, body, query)
+            else
+              table.insert(chunks, { body })
+            end
+            vim.api.nvim_echo(chunks, true, {})
+          else
+            vim.api.nvim_echo({ { "stdout is empty", "WarningMsg" } }, true, {})
           end
-          vim.api.nvim_echo({ { r.stdout or "stdout is empty", "Normal" } }, true, {})
         else
-          vim.api.nvim_echo({ { r.stderr or "stderr is empty", "ErrorMsg" } }, true, {})
+          if r.stderr and #r.stderr ~= 0 then
+            vim.api.nvim_echo({ { r.stderr, "ErrorMsg" } }, true, {})
+          else
+            vim.api.nvim_echo({ { "stderr is empty", "ErrorMsg" } }, true, {})
+          end
         end
       end)
     end
@@ -286,9 +343,15 @@ end
 
 ---@type httpc.Httpc
 local M = setmetatable({
-  ---@param opts httpc.Opts
+  ---@param opts httpc.Opts | nil
   setup = function(opts)
-    user_opts = opts or {}
+    if type(vim.tbl_get(opts or {}, "animation", "spinner", 1)) == "string" then
+      ---@cast opts httpc.Opts
+      opts.animation.spinner = vim.tbl_map(function(s)
+        return { { s, "Comment" } }
+      end, opts.animation.spinner)
+    end
+    user_opts = vim.tbl_deep_extend("force", default_opts, opts or {})
   end,
 }, {
   __index = function(_, k)
