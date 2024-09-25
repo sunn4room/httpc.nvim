@@ -1,0 +1,7 @@
+@PROT=https
+@HOST=httpbin.org
+@SITE={{PROT}}://{{HOST}}
+
+###
+
+GET {{SITE}}/get

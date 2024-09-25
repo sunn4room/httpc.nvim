@@ -21,11 +21,18 @@
 ---@field col integer
 
 ---@class httpc.Context
+---@field spinner [ integer, integer, integer ]
 ---@field timer uv_timer_t
 ---@field process vim.SystemObj
 
 ---@class httpc.Error
 ---@field reason string
+
+---@param msg string
+---@param level integer | nil
+local log = function(msg, level)
+  vim.notify("[Httpc] " .. msg, level)
+end
 
 ---@type httpc.Opts
 local user_opts = {}
@@ -60,7 +67,7 @@ local default_opts = {
       local max = math.floor(tonumber(args[2]) or (min + 1))
       return tostring(math.random(min, max))
     end,
-    date = function(args)
+    datetime = function(args)
       return os.date(args[1]) --[[@as string]]
     end,
     timestamp = function()
@@ -129,57 +136,36 @@ local get_request = function(pos)
   return node, pos.buf
 end
 
----@type table<string, httpc.Context>
-local ctxs = {}
+---@type httpc.Context | nil
+local context = nil
 
----@param buf integer
----@param extmark integer
-local clear_ctx = function(buf, extmark)
-  local id = ("%d-%d"):format(buf, extmark)
-  local ctx = ctxs[id]
-  if not ctx.process:is_closing() then
-    ctx.process:kill(9)
+local clear_ctx = function()
+  if context then
+    if not context.process:is_closing() then
+      context.process:kill(9)
+    end
+    if not context.timer:is_closing() then
+      context.timer:stop()
+      context.timer:close()
+    end
+    local spinner = context.spinner
+    vim.schedule(function()
+      vim.api.nvim_buf_del_extmark(unpack(spinner))
+    end)
+    context = nil
   end
-  if not ctx.timer:is_closing() then
-    ctx.timer:stop()
-    ctx.timer:close()
-  end
-  ctxs[id] = nil
-  vim.schedule(function()
-    local ns = vim.api.nvim_create_namespace("httpc-" .. tostring(buf))
-    vim.api.nvim_buf_del_extmark(buf, ns, extmark)
-  end)
 end
 
 ---@param node TSNode
 ---@param buf integer
 local run_request = function(node, buf)
-  local ns = vim.api.nvim_create_namespace("httpc-" .. tostring(buf))
-  local spinner = get_opt("animation", "spinner") --[[@as httpc.AnimationSpinner]]
-  local interval = get_opt("animation", "interval") --[[@as integer]]
-  local spinner_idx = 0
-  local linenr = node:range()
-  local extmark = vim.api.nvim_buf_set_extmark(buf, ns, linenr, 0, {
-    virt_text_pos = "right_align",
-    virt_text = spinner[1],
-  })
-  local id = ("%d-%d"):format(buf, extmark)
-  local timer = vim.uv.new_timer()
-  timer:start(interval, interval, vim.schedule_wrap(function()
-    spinner_idx = (spinner_idx + 1) % #spinner
-    vim.api.nvim_buf_set_extmark(buf, ns, linenr, 0, {
-      id = extmark,
-      virt_text_pos = "right_align",
-      virt_text = spinner[spinner_idx + 1],
-    })
-  end))
   ---@type string[]
   local cmd = { "curl", "-i", "-s", "-S", "-w", "%{time_total} %{size_request}" }
   ---@type table<string, string>
-  local env_cache = {}
-  ---@type fun(origin: string): string
-  local parse_env_variable
-  parse_env_variable = function(origin)
+  local variable_cache = {}
+  ---@type fun(origin: string, cur_node: TSNode | nil): string
+  local parse_variable
+  parse_variable = function(origin, target_node)
     return select(1, origin:gsub("{{(.-)}}", function(s)
       if s:sub(1, 1) == "$" then
         ---@type string[]
@@ -205,9 +191,8 @@ local run_request = function(node, buf)
         end
         return magic_fun(args)
       else
-        if env_cache[s] then return env_cache[s] end
-        ---@type TSNode
-        local cur_node = node
+        if variable_cache[s] then return variable_cache[s] end
+        local cur_node = target_node or node
         while true do
           ---@type TSNode | nil
           local prev_node = cur_node:prev_named_sibling()
@@ -227,20 +212,20 @@ local run_request = function(node, buf)
               if identifier_text == s then
                 local value = cur_node:named_child(1)
                 if value then
-                  local value_text = parse_env_variable(vim.treesitter.get_node_text(value, buf))
-                  env_cache[identifier_text] = value_text
+                  local value_text = parse_variable(vim.treesitter.get_node_text(value, buf), cur_node)
+                  variable_cache[identifier_text] = value_text
                   return value_text
                 end
               end
             end
           end
         end
-        error({ reason = "env variable " .. s .. " not found" })
+        error({ reason = "variable " .. s .. " not found" })
       end
     end))
   end
   for cnode in node:iter_children() do
-    local content = parse_env_variable(vim.treesitter.get_node_text(cnode, buf))
+    local content = parse_variable(vim.treesitter.get_node_text(cnode, buf))
     if cnode:type() == "method" then
       cmd[#cmd + 1] = "-X"
       cmd[#cmd + 1] = content
@@ -254,9 +239,27 @@ local run_request = function(node, buf)
       cmd[#cmd + 1] = content
     end
   end
+  local ns = vim.api.nvim_create_namespace("httpc-" .. tostring(buf))
+  local spinner = get_opt("animation", "spinner") --[[@as httpc.AnimationSpinner]]
+  local interval = get_opt("animation", "interval") --[[@as integer]]
+  local spinner_idx = 0
+  local linenr = node:range()
+  local extmark = vim.api.nvim_buf_set_extmark(buf, ns, linenr, 0, {
+    virt_text_pos = "right_align",
+    virt_text = spinner[1],
+  })
+  local timer = vim.uv.new_timer()
+  timer:start(interval, interval, vim.schedule_wrap(function()
+    spinner_idx = (spinner_idx + 1) % #spinner
+    vim.api.nvim_buf_set_extmark(buf, ns, linenr, 0, {
+      id = extmark,
+      virt_text_pos = "right_align",
+      virt_text = spinner[spinner_idx + 1],
+    })
+  end))
   local process = vim.system(cmd, { text = true }, function(r)
     if r.signal == 0 then
-      clear_ctx(buf, extmark)
+      clear_ctx()
       vim.schedule(function()
         if r.code == 0 then
           if r.stdout then
@@ -274,25 +277,11 @@ local run_request = function(node, buf)
       end)
     end
   end)
-  ctxs[id] = {
+  context = {
+    spinner = { buf, ns, extmark },
     timer = timer,
     process = process,
   }
-end
-
----@param node TSNode
----@param buf integer
-local clear_request = function(node, buf)
-  local ns = vim.api.nvim_create_namespace("httpc-" .. tostring(buf))
-  local linenr = node:range()
-  for _, extmark in ipairs(vim.tbl_map(
-    function(e)
-      return e[1]
-    end,
-    vim.api.nvim_buf_get_extmarks(buf, ns, { linenr, 0 }, { linenr, 0 }, {})
-  )) do
-    clear_ctx(buf, extmark)
-  end
 end
 
 ---@type httpc.Httpc
@@ -308,13 +297,12 @@ local M = setmetatable({
       ---@return any
       run = function(pos)
         local node, buf = get_request(pos)
-        clear_request(node, buf)
+        clear_ctx()
         run_request(node, buf)
       end,
-      ---@param pos httpc.Pos | nil
       ---@return any
-      clear = function(pos)
-        clear_request(get_request(pos))
+      cancel = function()
+        clear_ctx()
       end,
     }
     if actions[k] then
@@ -323,16 +311,17 @@ local M = setmetatable({
         local is_success, result = pcall(actions[k], pos)
         if not is_success then
           if type(result) == "string" then
-            vim.notify(string.format("Httpc unknow error: %s.", result), 4)
+            log(string.format("unknow error: %s.", result), 4)
           elseif type(result) == "table" then
             ---@cast result httpc.Error
-            vim.notify(string.format("Httpc error: %s.", result.reason), 4)
+            log(string.format("error: %s.", result.reason), 4)
           end
+          clear_ctx()
         end
       end
     else
       if type(k) == "string" then
-        vim.notify(string.format("No action '%s' in httpc.", k), 3)
+        log(string.format("No magic '%s'.", k), 3)
       end
       return function() end
     end

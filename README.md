@@ -17,7 +17,7 @@ return {
       -- encode = function(args) ... end,
       -- decode = function(args) ... end,
       -- ...
-      -- builtin magics: processEnv, date, randomInt, timestamp, urlencode
+      -- builtin magics: processEnv, datetime, randomInt, timestamp, urlencode
       -- usage: {{$<magic> <arg1> <arg2> <args3>}}
     },
   },
@@ -32,6 +32,19 @@ return {
   - [x] Use magic lua function in variable replacement.
   - [ ] Read variable from environment files.
 - [ ] Response highlight.
+
+## usage
+
+```lua
+-- run request under cursor
+require("httpc").run()
+
+-- run request somewhere
+require("httpc").run({ buf = 0, row = 0, col = 0 })
+
+-- cancel the running request if any
+require("httpc").cancel()
+```
 
 ## Q&A
 
@@ -85,5 +98,26 @@ GET https://{{HOST}}/get
 
 ```
 GET https://httpbin.org/get
-Current-Datetime: {{$date %Y-%m-%d\ %H:%M:%S}}
+Current-Datetime: {{$datetime %Y-%m-%d\ %H:%M:%S}}
+```
+
+### How to edit response in buffer?
+
+After request complete, response is printed in cmdline area. At this point, you can only scroll up and down. If you want to edit response in buffer, you can use `:redir` command.
+
+```lua
+-- before run request
+vim.cmd [[redir @"]]
+
+-- run request
+require("httpc").run()
+
+-- after get response
+vim.cmd [[redir END]]
+
+-- create a new buffer
+vim.cmd [[enew]]
+
+-- paste the response from unnamed register
+vim.cmd [[normal p]]
 ```
