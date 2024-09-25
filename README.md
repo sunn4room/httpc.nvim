@@ -13,11 +13,12 @@ return {
       interval = 100,
     },
     magics = {
-      -- uuid = function(args) ... end,
-      -- encode = function(args) ... end,
-      -- decode = function(args) ... end,
+      -- processEnv = function(args) ... end,
+      -- datetime = function(args) ... end,
+      -- randomInt = function(args) ... end,
+      -- timestamp = function(args) ... end,
+      -- urlencode = function(args) ... end,
       -- ...
-      -- builtin magics: processEnv, datetime, randomInt, timestamp, urlencode
       -- usage: {{$<magic> <arg1> <arg2> <args3>}}
     },
     patterns = {
