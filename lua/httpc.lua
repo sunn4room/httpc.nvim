@@ -280,10 +280,12 @@ local run_request = function(node, buf)
       end
     elseif cnode:type() == "header" then
       cmd[#cmd + 1] = "-H"
-      cmd[#cmd + 1] = vim.treesitter.get_node_text(cnode, buf):gsub("^.-:(.*)$", function(v)
-        local header_value = parse_variable(v)
-        is_form_data = vim.trim(header_value) == "multipart/form-data"
-        return header_value
+      cmd[#cmd + 1] = vim.treesitter.get_node_text(cnode, buf):gsub("^(.-):(.*)$", function(k, v)
+        v = vim.trim(parse_variable(v))
+        if k:lower() == "content-type" then
+          is_form_data = v == "multipart/form-data"
+        end
+        return k .. ": " .. v
       end)
     elseif cnode:type() == "external_body" then
       cmd[#cmd + 1] = "-d"
@@ -318,6 +320,7 @@ local run_request = function(node, buf)
       virt_text = spinner[spinner_idx + 1],
     })
   end))
+  log(vim.inspect(cmd), 1)
   local process = vim.system(cmd, { text = true }, function(r)
     if r.signal == 0 then
       clear_ctx()

@@ -131,6 +131,14 @@ GET https://httpbin.org/get
 Current-Datetime: {{$datetime %Y-%m-%d\ %H:%M:%S}}
 ```
 
+### How to special the env during reading variables from env files?
+
+By default, httpc.nvim read variables from `http-client.env.json` and `http-client.env.json.user` with `dev` env.
+
+```lua
+vim.b.http_client_env = "prod"
+```
+
 ### How to edit response in buffer?
 
 After request complete, response is printed in cmdline area. At this point, you can only scroll up and down. If you want to edit response in buffer, you can use `:redir` command.
