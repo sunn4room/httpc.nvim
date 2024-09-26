@@ -4,12 +4,20 @@
 
 ###
 
+{{SITE}}/get
+
+### with method
+
 GET {{SITE}}/get
+
+### with http version
+
+GET {{SITE}}/get HTTP/1.1
 
 ###
 
 POST {{SITE}}/post
-Content-Type: application/json
+Content-Type:
 
 {
   "key": "value"

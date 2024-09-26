@@ -238,18 +238,24 @@ local run_request = function(node, buf)
     end))
   end
   for cnode in node:iter_children() do
-    local content = parse_variable(vim.treesitter.get_node_text(cnode, buf))
     if cnode:type() == "method" then
       cmd[#cmd + 1] = "-X"
-      cmd[#cmd + 1] = content
+      cmd[#cmd + 1] = parse_variable(vim.treesitter.get_node_text(cnode, buf))
     elseif cnode:type() == "target_url" then
-      cmd[#cmd + 1] = content
+      cmd[#cmd + 1] = parse_variable(vim.treesitter.get_node_text(cnode, buf))
+    elseif cnode:type() == "http_version" then
+      local version = parse_variable(vim.treesitter.get_node_text(cnode, buf)):sub(6)
+      if vim.tbl_contains({ "0.9", "1.0", "1.1", "2", "3" }, version) then
+        cmd[#cmd + 1] = "--http" .. version
+      end
     elseif cnode:type() == "header" then
       cmd[#cmd + 1] = "-H"
-      cmd[#cmd + 1] = content
+      cmd[#cmd + 1] = vim.treesitter.get_node_text(cnode, buf):gsub("^.-:(.*)$", function(v)
+        return parse_variable(v)
+      end)
     elseif cnode:type() == "json_body" then
       cmd[#cmd + 1] = "-d"
-      cmd[#cmd + 1] = content
+      cmd[#cmd + 1] = parse_variable(vim.treesitter.get_node_text(cnode, buf))
     end
   end
   local ns = vim.api.nvim_create_namespace("httpc-" .. tostring(buf))

@@ -47,6 +47,7 @@ return {
 - [x] Request parse.
   - [x] method
   - [x] url
+  - [x] http version
   - [x] headers
   - [x] json body
   - [ ] raw body
