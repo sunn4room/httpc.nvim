@@ -79,6 +79,10 @@ local default_opts = {
   },
   patterns = {
     json = "^application/.*json.*$",
+    xml = "^application/.*xml.*$",
+    html = "^text/.*html.*$",
+    css = "^text/.*css.*$"
+    javascript = "^text/.*javascript.*$",
   },
 }
 

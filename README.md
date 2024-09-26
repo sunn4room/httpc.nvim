@@ -1,5 +1,5 @@
 > [!NOTE]
-> please read [](https://learn.microsoft.com/en-us/aspnet/core/test/http-files)
+> please read [this link](https://learn.microsoft.com/en-us/aspnet/core/test/http-files).
 
 # httpc.nvim
 
