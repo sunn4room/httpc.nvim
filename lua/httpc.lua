@@ -266,6 +266,7 @@ local run_request = function(node, buf)
       end
     end))
   end
+  local is_form_data = false
   for cnode in node:iter_children() do
     if cnode:type() == "method" then
       cmd[#cmd + 1] = "-X"
@@ -280,14 +281,23 @@ local run_request = function(node, buf)
     elseif cnode:type() == "header" then
       cmd[#cmd + 1] = "-H"
       cmd[#cmd + 1] = vim.treesitter.get_node_text(cnode, buf):gsub("^.-:(.*)$", function(v)
-        return parse_variable(v)
+        local header_value = parse_variable(v)
+        is_form_data = vim.trim(header_value) == "multipart/form-data"
+        return header_value
       end)
     elseif cnode:type() == "external_body" then
       cmd[#cmd + 1] = "-d"
       cmd[#cmd + 1] = parse_variable(vim.treesitter.get_node_text(cnode, buf):gsub("^(<%s+)", "@"))
-    elseif cnode:type():sub(-5, -1) == "_body" then
-      cmd[#cmd + 1] = "--data-raw"
-      cmd[#cmd + 1] = parse_variable(vim.treesitter.get_node_text(cnode, buf))
+    elseif cnode:type():match("_body$") then
+      if is_form_data then
+        for _, form_line in ipairs(vim.split(vim.trim(parse_variable(vim.treesitter.get_node_text(cnode, buf))), "\n")) do
+          cmd[#cmd + 1] = "-F"
+          cmd[#cmd + 1] = form_line
+        end
+      else
+        cmd[#cmd + 1] = "-d"
+        cmd[#cmd + 1] = vim.trim(parse_variable(vim.treesitter.get_node_text(cnode, buf)))
+      end
     end
   end
   local ns = vim.api.nvim_create_namespace("httpc-" .. tostring(buf))
