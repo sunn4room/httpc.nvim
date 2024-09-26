@@ -30,3 +30,11 @@ Content-Type: application/json
 {
   "key": "value"
 }
+
+### post external
+
+POST {{Address}}/post
+Content-Type: application/json
+
+< body.json
+

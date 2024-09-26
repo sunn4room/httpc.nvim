@@ -52,10 +52,9 @@ return {
   - [x] url
   - [x] http version
   - [x] headers
-  - [x] json body
-  - [ ] raw body
+  - [x] body
+  - [x] external body
   - [ ] form support
-  - [ ] external file support
 - [x] Spinner to indicate that request is running.
 - [x] variable replacement.
   - [x] Define variable inside http file.

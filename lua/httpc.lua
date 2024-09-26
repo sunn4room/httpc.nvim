@@ -81,7 +81,7 @@ local default_opts = {
     json = "^application/.*json.*$",
     xml = "^application/.*xml.*$",
     html = "^text/.*html.*$",
-    css = "^text/.*css.*$"
+    css = "^text/.*css.*$",
     javascript = "^text/.*javascript.*$",
   },
 }
@@ -282,8 +282,11 @@ local run_request = function(node, buf)
       cmd[#cmd + 1] = vim.treesitter.get_node_text(cnode, buf):gsub("^.-:(.*)$", function(v)
         return parse_variable(v)
       end)
-    elseif cnode:type() == "json_body" then
+    elseif cnode:type() == "external_body" then
       cmd[#cmd + 1] = "-d"
+      cmd[#cmd + 1] = parse_variable(vim.treesitter.get_node_text(cnode, buf):gsub("^(<%s+)", "@"))
+    elseif cnode:type():sub(-5, -1) == "_body" then
+      cmd[#cmd + 1] = "--data-raw"
       cmd[#cmd + 1] = parse_variable(vim.treesitter.get_node_text(cnode, buf))
     end
   end
