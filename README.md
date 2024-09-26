@@ -55,7 +55,7 @@ return {
   - [x] body
   - [x] external body
   - [x] form
-  - [ ] graphql
+  - [x] graphql
 - [x] Spinner to indicate that request is running.
 - [x] variable replacement.
   - [x] Define variable inside http file.

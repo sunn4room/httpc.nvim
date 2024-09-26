@@ -190,7 +190,7 @@ local run_request = function(node, buf)
   parse_variable = function(origin, target_node)
     ---@param s string
     ---@return string
-    return select(1, origin:gsub("{{(.-)}}", function(s)
+    local parsed = origin:gsub("{{(.-)}}", function(s)
       if s:sub(1, 1) == "$" then
         ---@type string[]
         local parts = vim.split(s:sub(2), " ")
@@ -267,7 +267,8 @@ local run_request = function(node, buf)
         end
         error({ reason = "variable " .. s .. " not found" })
       end
-    end))
+    end)
+    return parsed
   end
   local is_form_data = false
   for cnode in node:iter_children() do
@@ -299,6 +300,21 @@ local run_request = function(node, buf)
           cmd[#cmd + 1] = "-F"
           cmd[#cmd + 1] = form_line
         end
+      elseif cnode:type() == "external_body" then
+        cmd[#cmd + 1] = "-d"
+        cmd[#cmd + 1] = parse_variable(vim.treesitter.get_node_text(cnode, buf):gsub("^(<%s+)", "@"))
+      elseif cnode:type() == "graphql_body" then
+        local json = {}
+        for _, ccnode in ipairs(cnode:named_children()) do
+          if ccnode:type() == "graphql_data" then
+            json.query = parse_variable(vim.treesitter.get_node_text(ccnode, buf))
+          elseif ccnode:type() == "json_body" then
+            vim.notify(parse_variable(vim.treesitter.get_node_text(ccnode, buf)))
+            json.variables = vim.json.decode(parse_variable(vim.treesitter.get_node_text(ccnode, buf)))
+          end
+        end
+        cmd[#cmd + 1] = "-d"
+        cmd[#cmd + 1] = vim.json.encode(json)
       else
         cmd[#cmd + 1] = "-d"
         cmd[#cmd + 1] = vim.trim(parse_variable(vim.treesitter.get_node_text(cnode, buf)))
