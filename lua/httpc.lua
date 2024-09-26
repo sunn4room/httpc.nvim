@@ -240,20 +240,22 @@ local run_request = function(node, buf)
         end
         if not env_variable_cache then
           env_variable_cache = {}
-          local env_path = vim.fn.expand("%:p:h") .. package.config:sub(1, 1) .. "http-client.env.json"
-          if vim.fn.filereadable(env_path) == 1 then
-            local env_file = assert(io.open(env_path, "r"))
-            local env_content = vim.json.decode(env_file:read("*all"))
-            env_file:close()
-            local env = vim.b.http_client_env or "dev"
-            if env_content[env] then
-              for k, v in pairs(env_content[env]) do
-                env_variable_cache[k] = tostring(v)
-              end
-              if env_variable_cache[s] then
-                return env_variable_cache[s]
+          for _, env_name in ipairs({ "http-client.env.json", "http-client.env.json.user" }) do
+            local env_path = vim.fn.expand("%:p:h") .. package.config:sub(1, 1) .. env_name
+            if vim.fn.filereadable(env_path) == 1 then
+              local env_file = assert(io.open(env_path, "r"))
+              local env_content = vim.json.decode(env_file:read("*all"))
+              env_file:close()
+              local env = vim.b.http_client_env or "dev"
+              if env_content[env] then
+                for k, v in pairs(env_content[env]) do
+                  env_variable_cache[k] = tostring(v)
+                end
               end
             end
+          end
+          if env_variable_cache[s] then
+            return env_variable_cache[s]
           end
         end
         error({ reason = "variable " .. s .. " not found" })

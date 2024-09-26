@@ -1,3 +1,6 @@
+> [!NOTE]
+> please read [](https://learn.microsoft.com/en-us/aspnet/core/test/http-files)
+
 # httpc.nvim
 
 This neovim plugin just do one thing: send http request under cursor and return the http response to you.

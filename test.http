@@ -18,6 +18,10 @@ GET {{Address}}/get HTTP/1.1
 
 {{EnvAddress}}/get
 
+### user env
+
+{{UserEnvAddress}}/get
+
 ### post
 
 POST {{Address}}/post
