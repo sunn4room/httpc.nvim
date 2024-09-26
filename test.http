@@ -1,23 +1,27 @@
 @PROT=https
 @HOST=httpbin.org
-@SITE={{PROT}}://{{HOST}}
+@Address={{PROT}}://{{HOST}}
 
-###
+### get
 
-{{SITE}}/get
+{{Address}}/get
 
-### with method
+### method
 
-GET {{SITE}}/get
+GET {{Address}}/get
 
-### with http version
+### http version
 
-GET {{SITE}}/get HTTP/1.1
+GET {{Address}}/get HTTP/1.1
 
-###
+### env
 
-POST {{SITE}}/post
-Content-Type:
+{{EnvAddress}}/get
+
+### post
+
+POST {{Address}}/post
+Content-Type: application/json
 
 {
   "key": "value"

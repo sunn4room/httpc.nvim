@@ -176,9 +176,13 @@ local run_request = function(node, buf)
   local cmd = { "curl", "-i", "-s", "-S", "-w", " %{time_total}" }
   ---@type table<string, string>
   local variable_cache = {}
+  ---@type table<string, string> | nil
+  local env_variable_cache = nil
   ---@type fun(origin: string, cur_node: TSNode | nil): string
   local parse_variable
   parse_variable = function(origin, target_node)
+    ---@param s string
+    ---@return string
     return select(1, origin:gsub("{{(.-)}}", function(s)
       if s:sub(1, 1) == "$" then
         ---@type string[]
@@ -205,6 +209,7 @@ local run_request = function(node, buf)
         return magic_fun(args)
       else
         if variable_cache[s] then return variable_cache[s] end
+        if env_variable_cache and env_variable_cache[s] then return env_variable_cache[s] end
         local cur_node = target_node or node
         while true do
           ---@type TSNode | nil
@@ -229,6 +234,24 @@ local run_request = function(node, buf)
                   variable_cache[identifier_text] = value_text
                   return value_text
                 end
+              end
+            end
+          end
+        end
+        if not env_variable_cache then
+          env_variable_cache = {}
+          local env_path = vim.fn.expand("%:p:h") .. package.config:sub(1, 1) .. "http-client.env.json"
+          if vim.fn.filereadable(env_path) == 1 then
+            local env_file = assert(io.open(env_path, "r"))
+            local env_content = vim.json.decode(env_file:read("*all"))
+            env_file:close()
+            local env = vim.b.http_client_env or "dev"
+            if env_content[env] then
+              for k, v in pairs(env_content[env]) do
+                env_variable_cache[k] = tostring(v)
+              end
+              if env_variable_cache[s] then
+                return env_variable_cache[s]
               end
             end
           end
@@ -285,8 +308,9 @@ local run_request = function(node, buf)
             local version, status, headers, body, time =
                 r.stdout:match("^([^ ]+) ([^ ]+) \n(.-)\n\n(.*) ([^ ]+)$")
             local chunks = {}
-            table.insert(chunks, { "take " .. time .. " seconds.", "MoreMsg" })
-            table.insert(chunks, { "\n----------------------\n", "MoreMsg" })
+            local time_str = "take " .. time .. " seconds"
+            table.insert(chunks, { time_str, "MoreMsg" })
+            table.insert(chunks, { "\n" .. ("-"):rep(#time_str) .. "\n", "MoreMsg" })
             table.insert(chunks, { version })
             table.insert(chunks, { " " })
             local status_kind = tonumber(status:sub(1, 1)) --[[@as integer]]

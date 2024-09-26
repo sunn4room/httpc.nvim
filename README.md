@@ -57,7 +57,7 @@ return {
 - [x] variable replacement.
   - [x] Define variable inside http file.
   - [x] Use magic lua function in variable replacement.
-  - [ ] Read variable from environment files.
+  - [x] Read variable from environment files.
 - [x] Response highlight.
 
 ## usage
