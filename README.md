@@ -30,6 +30,18 @@ return {
 }
 ```
 
+> [!NOTE]
+> neovim doesn't recogize `http` ft by default.
+>
+> ```lua
+> vim.filetype.add {
+>   extension = {
+>     http = "http",
+>     rest = "http",
+>   },
+> }
+> ```
+
 ## features
 
 - [x] Request parse.
