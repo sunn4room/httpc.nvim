@@ -176,6 +176,9 @@ end
 ---@param node TSNode
 ---@param buf integer
 local run_request = function(node, buf)
+  if vim.fn.executable("curl") ~= 1 then
+    error({ reason = "curl is not executable" })
+  end
   ---@type string[]
   local cmd = { "curl", "-i", "-s", "-S", "-w", " %{time_total}" }
   ---@type table<string, string>
