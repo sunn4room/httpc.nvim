@@ -331,7 +331,7 @@ local run_request = function(node, buf)
         if r.code == 0 then
           if r.stdout and #r.stdout ~= 0 then
             local version, status, headers, body, time =
-                r.stdout:match("^([^ ]+) ([^ ]+) \n(.-)\n\n(.*) ([^ ]+)$")
+                r.stdout:match("^(HTTP/[0-9.]+) (%d%d%d) [a-zA-Z ]*\n(.-)\n\n(.*) ([0-9.]+)$")
             local chunks = {}
             local time_str = "take " .. time .. " seconds"
             table.insert(chunks, { time_str, "MoreMsg" })
