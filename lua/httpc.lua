@@ -166,10 +166,20 @@ local add_body_highlights = function(chunks, body, query)
   local idx = 1
   local group = groups[1]
   groups[1] = nil
+
+  local group_list = {}
   for i, g in pairs(groups) do
-    table.insert(chunks, { body:sub(idx, i - 1), group })
-    idx = i
-    group = g
+    table.insert(group_list, { i, g })
+  end
+
+  table.sort(group_list, function(e1, e2)
+    return e1[1] < e2[1]
+  end)
+
+  for _, ele in ipairs(group_list) do
+    table.insert(chunks, { body:sub(idx, ele[1] - 1), group })
+    idx = ele[1]
+    group = ele[2]
   end
 end
 
@@ -339,7 +349,6 @@ local run_request = function(node, buf)
       virt_text = spinner[spinner_idx + 1],
     })
   end))
-  log(vim.inspect(cmd), 1)
   local process = vim.system(cmd, { text = true }, function(r)
     if r.signal == 0 then
       clear_ctx()

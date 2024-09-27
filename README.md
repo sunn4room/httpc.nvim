@@ -144,13 +144,14 @@ vim.b.http_client_env = "prod"
 After request complete, response is printed in cmdline area. At this point, you can only scroll up and down. If you want to edit response in buffer, you can use `:redir` command.
 
 ```lua
--- before run request
+-- redirect the cmdline messages to unnamed register
 vim.cmd [[redir @"]]
 
 -- run request
 require("httpc").run()
+-- after response displayed, press 'G' to scroll to bottom, press 'ENTER' to exit
 
--- after get response
+-- stop redirect
 vim.cmd [[redir END]]
 
 -- create a new buffer
