@@ -5,6 +5,7 @@
 
 ---@class httpc.Opts
 ---@field animation httpc.Animation | nil
+---@field register string | nil
 ---@field magics table<string, httpc.Magic> | nil
 ---@field patterns table<string, string> | nil
 
@@ -46,6 +47,7 @@ local default_opts = {
     },
     interval = 100,
   },
+  register = "_",
   magics = {
     processEnv = function(args)
       local key = args[1]
@@ -401,6 +403,7 @@ local run_request = function(node, buf)
               table.insert(chunks, { body })
             end
             vim.api.nvim_echo(chunks, true, {})
+            vim.fn.setreg(user_opts.register, vim.fn.join(vim.tbl_map(function(c) return c[1] end, chunks), ""))
           else
             vim.api.nvim_echo({ { "stdout is empty", "WarningMsg" } }, true, {})
           end

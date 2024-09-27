@@ -11,6 +11,7 @@ return {
   "sunn4room/httpc.nvim",
   ft = "http",
   opts = {
+    register = "_", -- the register used to hold the response
     animation = {
       spinner = { "|", "/", "-", "\\" },
       interval = 100,
@@ -137,26 +138,4 @@ By default, httpc.nvim read variables from `http-client.env.json` and `http-clie
 
 ```lua
 vim.b.http_client_env = "prod"
-```
-
-### How to edit response in buffer?
-
-After request complete, response is printed in cmdline area. At this point, you can only scroll up and down. If you want to edit response in buffer, you can use `:redir` command.
-
-```lua
--- redirect the cmdline messages to unnamed register
-vim.cmd [[redir @"]]
-
--- run request
-require("httpc").run()
--- after response displayed, press 'G' to scroll to bottom, press 'ENTER' to exit
-
--- stop redirect
-vim.cmd [[redir END]]
-
--- create a new buffer
-vim.cmd [[enew]]
-
--- paste the response from unnamed register
-vim.cmd [[normal p]]
 ```
