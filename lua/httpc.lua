@@ -195,7 +195,7 @@ local run_request = function(node, buf)
   local variable_cache = {}
   ---@type table<string, string> | nil
   local env_variable_cache = nil
-  ---@type fun(origin: string, cur_node: TSNode | nil): string
+  ---@type fun(origin: string, targer_node: TSNode | nil): string
   local parse_variable
   parse_variable = function(origin, target_node)
     ---@param s string
@@ -223,7 +223,7 @@ local run_request = function(node, buf)
           end
           args[#args + 1] = arg
         end
-        return magic_fun(args)
+        return parse_variable(magic_fun(args), target_node)
       else
         if variable_cache[s] then return variable_cache[s] end
         if env_variable_cache and env_variable_cache[s] then return env_variable_cache[s] end
